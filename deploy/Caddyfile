@@ -1,0 +1,18 @@
+{
+  admin off
+}
+
+{$APP_DOMAIN} {
+  encode zstd gzip
+
+  @api path /api /api/*
+  handle @api {
+    reverse_proxy backend:5001
+  }
+
+  handle {
+    root * /srv
+    try_files {path} /index.html
+    file_server
+  }
+}

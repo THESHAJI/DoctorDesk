@@ -104,3 +104,48 @@ npm run build
 - `backend/tests`: backend regression and workflow tests.
 
 Environment files, dependency directories, generated frontend output, and uploaded certificates/logos are excluded from Git. Keep real user data and credentials out of source control.
+
+## Production deployment with Docker
+
+The root `docker-compose.yml` runs PostgreSQL, applies migrations, starts the API, and serves the React build behind Caddy. Caddy obtains and renews HTTPS certificates automatically. Use a Linux server with Docker Engine and the Docker Compose plugin, a public domain, and inbound TCP ports 80/443 (plus UDP 443 for HTTP/3).
+
+1. Point the domain's DNS `A` record to the server's public IP. Wait for DNS to resolve before starting Caddy. Do not run another web server on ports 80 or 443.
+2. Clone this repository onto the server and create the private deployment environment file:
+
+   ```sh
+   cp deploy/.env.example .env
+   ```
+
+3. Edit `.env`: set `APP_DOMAIN` to the DNS name without `https://`, and replace the database and JWT placeholders with separate, long random hexadecimal secrets. To generate a secret on a machine with Node.js:
+
+   ```sh
+   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+   ```
+
+   Keep `.env` only on the server. Never paste secrets into chat, commit them, or use these instructions with a database containing data you need to preserve.
+4. Build and start the services:
+
+   ```sh
+   docker compose up -d --build
+   docker compose ps
+   docker compose logs -f web backend migrate
+   ```
+
+   The migration job runs before the API starts. The database is private to the Docker network; only the Caddy web service publishes ports 80 and 443. Named volumes persist PostgreSQL, certificates, and Caddy's TLS state across container replacements.
+5. Create the first production admin once the services are healthy:
+
+   ```sh
+   docker compose run --rm -it backend npm run admin:create
+   ```
+
+   Enter the administrator name, email, and a unique password of at least 14 characters when prompted. Password input is hidden. The command refuses to run if any admin already exists; it does not print or store the password in the app environment.
+6. Open `https://<APP_DOMAIN>`, register a doctor and patient, and approve the doctor from the admin account. Verify login, refresh persistence, uploads, and the health endpoint at `https://<APP_DOMAIN>/api/health`.
+
+Deploy updates by pulling the intended commit and rebuilding:
+
+```sh
+git pull
+docker compose up -d --build
+```
+
+Back up the `postgres_data` and `doctor_uploads` volumes using a tested backup process. The upload volume is private but lives on the server disk; for a production healthcare service, assess applicable privacy and data-retention requirements and consider encrypted private object storage. Do not run seeders or `db:reset` in production.

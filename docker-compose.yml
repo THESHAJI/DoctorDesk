@@ -1,0 +1,92 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in the root .env file}
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in the root .env file}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env file}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:?Set DB_NAME in the root .env file}
+      DB_USER: ${DB_USER:?Set DB_USER in the root .env file}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env file}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["npm", "run", "db:migrate"]
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:?Set DB_NAME in the root .env file}
+      DB_USER: ${DB_USER:?Set DB_USER in the root .env file}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the root .env file}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in the root .env file}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_URL: https://${APP_DOMAIN:?Set APP_DOMAIN in the root .env file}
+      MAX_FILE_SIZE: 5242880
+    volumes:
+      - doctor_uploads:/app/src/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5001/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in the root .env file}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  doctor_uploads:
+  caddy_data:
+  caddy_config:

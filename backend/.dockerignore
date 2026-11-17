@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log*
+.env
+.env.*
+coverage
+src/uploads/certificates/*
+!src/uploads/certificates/.gitkeep
+src/uploads/logos/*
+!src/uploads/logos/.gitkeep
