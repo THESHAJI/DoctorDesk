@@ -1,0 +1,33 @@
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { user, loading, isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    const dashboardRoutes = {
+      patient: '/patient/dashboard',
+      doctor: '/doctor/dashboard',
+      admin: '/admin/dashboard',
+    };
+    return <Navigate to={dashboardRoutes[user.role] || '/'} replace />;
+  }
+
+  return children;
+};
+
+export default ProtectedRoute;

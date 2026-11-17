@@ -1,0 +1,8 @@
+node_modules/
+.env
+src/uploads/certificates/*
+src/uploads/logos/*
+!src/uploads/certificates/.gitkeep
+!src/uploads/logos/.gitkeep
+coverage/
+*.log

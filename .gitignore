@@ -1,0 +1,28 @@
+# Local secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies and build output
+**/node_modules/
+doctordesk-frontend/dist/
+doctordesk-frontend/dist-ssr/
+backend/coverage/
+
+# Uploaded user files
+backend/src/uploads/certificates/*
+!backend/src/uploads/certificates/.gitkeep
+backend/src/uploads/logos/*
+!backend/src/uploads/logos/.gitkeep
+
+# Local data, logs, and editor state
+backups/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.local
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
